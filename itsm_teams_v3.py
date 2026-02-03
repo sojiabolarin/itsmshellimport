@@ -90,6 +90,9 @@ print("\n" + "-"*60)
 print("  CREATING TEAMS")
 print("-"*60)
 
+# Default leader: Soji (id=6). Reassign per team later in UI.
+DEFAULT_LEADER_ID = 6
+
 team_ids = {}
 for t in TEAMS:
     rec = env['generic.team'].search([('name', '=', t['name'])], limit=1)
@@ -98,6 +101,7 @@ for t in TEAMS:
             'name': t['name'],
             'description': t['description'],
             'active': True,
+            'leader_id': DEFAULT_LEADER_ID,
         })
         print(f"  ✓ Created: {t['name']} (id={rec.id})")
     else:
