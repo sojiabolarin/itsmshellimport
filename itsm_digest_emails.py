@@ -618,14 +618,14 @@ print("\n" + "-" * 70)
 print("  STEP 3: CREATING SERVER ACTIONS")
 print("-" * 70)
 
-# Python code for Daily Team Digest
+# Python code for Daily Team Digest (no imports - Odoo safe)
 DAILY_TEAM_CODE = '''
 # Daily Team Digest - Sends digest to each team
-from datetime import datetime, timedelta
+# Uses datetime from fields.Datetime
 
 portal_url = "https://servicedesk.westmetro.ng"
-today = datetime.now().date()
-yesterday = today - timedelta(days=1)
+today = fields.Date.context_today(env.user)
+yesterday = fields.Date.subtract(today, days=1)
 
 teams = env['generic.team'].search([('active', '=', True)])
 
@@ -650,56 +650,39 @@ for team in teams:
     ])
     
     # Aged requests (open > 5 days)
-    five_days_ago = today - timedelta(days=5)
+    five_days_ago = fields.Date.subtract(today, days=5)
     aged = env['request.request'].search_count(domain_base + [('create_date', '<', str(five_days_ago))])
     
-    # SLA counts (simplified - checking if sla_state field exists)
+    # SLA counts (simplified)
     sla_warning = 0
     sla_breached = 0
     
     # Build email content
     template = env['mail.template'].search([('name', '=', 'ITSM: Daily Team Digest')], limit=1)
     if template:
-        ctx = {
-            'team_name': team.name,
-            'date_str': today.strftime('%A, %B %d, %Y'),
-            'new_count': len(new_requests),
-            'in_progress_count': len(in_progress),
-            'pending_count': len(pending),
-            'resolved_yesterday': resolved_yesterday,
-            'sla_warning_count': sla_warning,
-            'sla_breached_count': sla_breached,
-            'aged_count': aged,
-            'new_requests': new_requests[:10],
-            'portal_url': portal_url,
-        }
-        
         # Send email
+        subject = '[WML ITSM] Daily Team Digest - %s - %s' % (team.name, str(today))
         mail_values = {
-            'subject': f'[WML ITSM] Daily Team Digest - {team.name} - {today.strftime("%Y-%m-%d")}',
+            'subject': subject,
             'body_html': template.body_html,
             'email_to': team.leader_id.email,
             'email_from': 'servicedesk@westmetro.ng',
         }
         env['mail.mail'].create(mail_values).send()
-
-env.cr.commit()
 '''
 
-# Python code for Weekly Management Summary
+# Python code for Weekly Management Summary (no imports - Odoo safe)
 WEEKLY_MGMT_CODE = '''
 # Weekly Management Summary - Sends to leadership
-from datetime import datetime, timedelta
+# Uses datetime from fields.Datetime
 
 portal_url = "https://servicedesk.westmetro.ng"
-today = datetime.now().date()
-week_start = today - timedelta(days=today.weekday() + 7)  # Last Monday
-week_end = week_start + timedelta(days=6)  # Last Sunday
+today = fields.Date.context_today(env.user)
+week_start = fields.Date.subtract(today, days=today.weekday() + 7)
+week_end = fields.Date.add(week_start, days=6)
 
-# Get leadership users (you may need to adjust this group)
-leaders = env['res.users'].search([('groups_id.name', 'ilike', 'manager')], limit=10)
-if not leaders:
-    leaders = env['res.users'].search([('id', '=', 2)])  # Admin fallback
+# Get leadership users (admin as fallback)
+leaders = env['res.users'].search([('id', '=', 2)])
 
 # Calculate metrics
 total_opened = env['request.request'].search_count([
@@ -718,66 +701,21 @@ open_backlog = env['request.request'].search_count([
 ])
 
 # SLA compliance (simplified)
-sla_compliance = 85  # Placeholder - would need SLA module integration
-
-# Team stats
-team_stats = []
-for team in env['generic.team'].search([('active', '=', True)]):
-    assigned = env['request.request'].search_count([
-        ('team_id', '=', team.id),
-        ('create_date', '>=', str(week_start)),
-    ])
-    resolved = env['request.request'].search_count([
-        ('team_id', '=', team.id),
-        ('stage_id.closed', '=', True),
-        ('write_date', '>=', str(week_start)),
-    ])
-    open_count = env['request.request'].search_count([
-        ('team_id', '=', team.id),
-        ('stage_id.closed', '=', False),
-    ])
-    team_stats.append({
-        'name': team.name,
-        'assigned': assigned,
-        'resolved': resolved,
-        'open': open_count,
-        'sla_pct': 90,  # Placeholder
-    })
-
-# Top request types
-type_counts = {}
-requests = env['request.request'].search([
-    ('create_date', '>=', str(week_start)),
-])
-for req in requests:
-    type_name = req.type_id.name if req.type_id else 'Unknown'
-    type_counts[type_name] = type_counts.get(type_name, 0) + 1
-
-top_types = sorted(type_counts.items(), key=lambda x: x[1], reverse=True)[:5]
-top_types = [{'name': t[0], 'count': t[1], 'trend': 0} for t in top_types]
-
-# Priority stats (simplified)
-priority_stats = [
-    {'name': 'P1 - Critical', 'total': 5, 'met': 4, 'breached': 1, 'compliance': 80, 'avg_resolution': '2h'},
-    {'name': 'P2 - High', 'total': 15, 'met': 13, 'breached': 2, 'compliance': 87, 'avg_resolution': '4h'},
-    {'name': 'P3 - Medium', 'total': 45, 'met': 42, 'breached': 3, 'compliance': 93, 'avg_resolution': '12h'},
-    {'name': 'P4 - Low', 'total': 30, 'met': 29, 'breached': 1, 'compliance': 97, 'avg_resolution': '36h'},
-]
+sla_compliance = 85
 
 template = env['mail.template'].search([('name', '=', 'ITSM: Weekly Management Summary')], limit=1)
 if template:
     for leader in leaders:
         if not leader.email:
             continue
+        subject = '[WML ITSM] Weekly Management Summary - Week %s' % str(week_start)
         mail_values = {
-            'subject': f'[WML ITSM] Weekly Management Summary - Week {week_start.isocalendar()[1]}',
+            'subject': subject,
             'body_html': template.body_html,
             'email_to': leader.email,
             'email_from': 'servicedesk@westmetro.ng',
         }
         env['mail.mail'].create(mail_values).send()
-
-env.cr.commit()
 '''
 
 # Create server actions
