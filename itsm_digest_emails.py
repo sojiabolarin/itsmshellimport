@@ -798,7 +798,7 @@ actions_created = 0
 action_ids = {}
 
 for act in SERVER_ACTIONS:
-    existing = env['ir.act_server'].search([('name', '=', act['name'])], limit=1)
+    existing = env['ir.actions.server'].search([('name', '=', act['name'])], limit=1)
     model_rec = env['ir.model'].search([('model', '=', act['model'])], limit=1)
     
     if existing:
@@ -815,7 +815,7 @@ for act in SERVER_ACTIONS:
             'model_id': model_rec.id if model_rec else False,
             'type': 'ir.actions.server',
         }
-        rec = env['ir.act_server'].create(vals)
+        rec = env['ir.actions.server'].create(vals)
         action_ids[act['name']] = rec.id
         actions_created += 1
         print(f"  + Created: {act['name']} (id={rec.id})")
