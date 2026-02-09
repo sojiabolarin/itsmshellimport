@@ -622,6 +622,7 @@ print("-" * 70)
 DAILY_TEAM_CODE = '''
 # Daily Team Digest - Sends digest to each team
 # Uses datetime from fields.Datetime
+# Queues emails instead of direct send for Zoho compatibility
 
 portal_url = "https://servicedesk.westmetro.ng"
 today = fields.Date.context_today(env.user)
@@ -660,21 +661,25 @@ for team in teams:
     # Build email content
     template = env['mail.template'].search([('name', '=', 'ITSM: Daily Team Digest')], limit=1)
     if template:
-        # Send email
+        # Queue email (state='outgoing') - Mail Queue Manager cron will send it
         subject = '[WML ITSM] Daily Team Digest - %s - %s' % (team.name, str(today))
         mail_values = {
             'subject': subject,
             'body_html': template.body_html,
             'email_to': team.leader_id.email,
             'email_from': 'servicedesk@westmetro.ng',
+            'mail_server_id': 2,
+            'state': 'outgoing',
+            'auto_delete': False,
         }
-        env['mail.mail'].create(mail_values).send()
+        env['mail.mail'].create(mail_values)
 '''
 
 # Python code for Weekly Management Summary (no imports - Odoo safe)
 WEEKLY_MGMT_CODE = '''
 # Weekly Management Summary - Sends to leadership
 # Uses datetime from fields.Datetime
+# Queues emails instead of direct send for Zoho compatibility
 
 portal_url = "https://servicedesk.westmetro.ng"
 today = fields.Date.context_today(env.user)
@@ -709,13 +714,17 @@ if template:
         if not leader.email:
             continue
         subject = '[WML ITSM] Weekly Management Summary - Week %s' % str(week_start)
+        # Queue email (state='outgoing') - Mail Queue Manager cron will send it
         mail_values = {
             'subject': subject,
             'body_html': template.body_html,
             'email_to': leader.email,
             'email_from': 'servicedesk@westmetro.ng',
+            'mail_server_id': 2,
+            'state': 'outgoing',
+            'auto_delete': False,
         }
-        env['mail.mail'].create(mail_values).send()
+        env['mail.mail'].create(mail_values)
 '''
 
 # Create server actions
